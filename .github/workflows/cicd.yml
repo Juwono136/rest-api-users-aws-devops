@@ -15,7 +15,7 @@ env:
 
 jobs:
   build:
-    name: Build, Test & Push
+    name: Build, Test and Push
     runs-on: ubuntu-latest
 
     outputs:

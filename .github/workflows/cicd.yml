@@ -1,0 +1,62 @@
+name: CI/CD Pipeline RestAPI Users
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - "README.md"
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  continuous-integration:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker Image
+        run: docker build -t juwono136/restapi-users  .
+
+      - name: Publish Image to Docker Hub
+        run: docker push juwono136/restapi-users:latest
+
+  continuous-deployment:
+    needs: continuous-integration
+    runs-on: self-hosted
+    steps:
+      - name: Pull image from docker hub
+        run: docker pull juwono136/restapi-users:latest
+
+      - name: Stop and Delete Old Container
+        run: |
+          docker stop restapi-users-container || true
+          docker rm restapi-users-container || true
+
+      - name: Run Docker Container
+        run: |
+          docker run -d \
+            -p 5000:5000 \
+            --name restapi-users-container \
+            --restart always \
+            -e PORT=${{ secrets.PORT }} \
+            -e CONNECTION_URL='${{ secrets.CONNECTION_URL }}' \
+            -e DB_NAME='${{ secrets.DB_NAME }}' \
+            -e DEFAULT_CLIENT_URL='${{ secrets.DEFAULT_CLIENT_URL }}' \
+            -e INTERNET_SERVER='${{ secrets.INTERNET_SERVER }}' \
+            -e NODE_ENV='${{ secrets.NODE_ENV }}' \
+            -e REFRESH_TOKEN_SECRET='${{ secrets.REFRESH_TOKEN_SECRET }}' \
+            -e ACCESS_TOKEN_SECRET='${{ secrets.ACCESS_TOKEN_SECRET }}' \
+            -e ACTIVATION_TOKEN_SECRET='${{ secrets.ACTIVATION_TOKEN_SECRET }}' \
+            -e EMAIL_USER='${{ secrets.EMAIL_USER }}' \
+            -e EMAIL_PASSWORD='${{ secrets.EMAIL_PASSWORD }}' \
+            juwono136/restapi-users
+
+      - name: Add Container to Tunnel
+        run: docker network connect ${{secrets.TUNNEL_NAME}} restapi-users-container

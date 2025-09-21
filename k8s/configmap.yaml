@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: restapi-users-config
+data:
+  PORT: "5000"
+  NODE_ENV: "production"
+  DEFAULT_CLIENT_URL: "http://localhost:5173"
+  INTERNET_SERVER: "http://localhost:5000"

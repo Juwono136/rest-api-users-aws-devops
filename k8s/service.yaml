@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: restapi-users-service
+spec:
+  selector:
+    app: restapi-users
+  ports:
+    - protocol: TCP
+      port: 80 # Service port
+      targetPort: 5000 # Port in the container
+  type: ClusterIP

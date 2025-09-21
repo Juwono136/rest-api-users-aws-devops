@@ -2,11 +2,9 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.92"
+      version = "~> 5.36"
     }
   }
-
-  required_version = ">= 1.2"
 }
 
 provider "aws" {
@@ -27,7 +25,7 @@ resource "aws_ecr_repository" "app_repo" {
 // create a Network (VPC) for Kubernetes
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "6.0.1"
+  version = "~> 5.8"
 
   name = "app-vpc"
   cidr = "10.0.0.0/16"
@@ -38,6 +36,16 @@ module "vpc" {
 
   enable_nat_gateway = true
   single_nat_gateway = true
+
+  public_subnet_tags = {
+    "kubernetes.io/cluster/restapi-users-cluster" = "shared"
+    "kubernetes.io/role/elb"                      = "1"
+  }
+
+  private_subnet_tags = {
+    "kubernetes.io/cluster/restapi-users-cluster" = "shared"
+    "kubernetes.io/role/internal-elb"             = "1"
+  }
 
   tags = {
     Project     = "restapi-users"

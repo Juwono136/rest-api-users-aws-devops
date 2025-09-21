@@ -7,8 +7,3 @@ data:
   NODE_ENV: "production"
   DEFAULT_CLIENT_URL: "http://localhost:5173"
   INTERNET_SERVER: "http://localhost:5000"
-  mapUsers: |
-    - userarn: arn:aws:iam::881881864280:user/terraform-admin
-      username: admin-github-action-ci
-      groups:
-        - system:masters

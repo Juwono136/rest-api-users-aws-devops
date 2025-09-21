@@ -67,6 +67,20 @@ module "eks" {
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
+  access_entries = {
+    github_actions = {
+      principal_arn = "arn:aws:iam::881881864280:user/terraform-admin" 
+      policy_associations = {
+        admin_access = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+  }
+
   eks_managed_node_groups = {
     one = {
       min_size     = 1

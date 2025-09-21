@@ -9,12 +9,17 @@ on:
       - master
 
 env:
+  AWS_REGION: ap-southeast-2
+  ECR_REPOSITORY: restapi-users
   EKS_CLUSTER_NAME: restapi-users-cluster
 
 jobs:
-  build_and_test:
-    name: Build, Test, and Push
+  build:
+    name: Build, Test & Push
     runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -24,7 +29,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -41,29 +46,32 @@ jobs:
       - name: Run Unit Tests
         run: npm test
 
-      - name: Security Scan with Trivy
+      - name: Build and tag the Docker image
+        id: build-image
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG} .
+          echo "image=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+      - name: Scan Docker Image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
+          image-ref: ${{ steps.build-image.outputs.image }}
           format: "table"
           exit-code: "1"
           ignore-unfixed: true
           vuln-type: "os,library"
           severity: "CRITICAL,HIGH"
 
-      - name: Build and Push Docker Image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -t $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
+      - name: Push image to Amazon ECR
+        run: docker push ${{ steps.build-image.outputs.image }}
 
-  deploy_to_staging:
+  deploy:
     name: Deploy to Staging (EKS)
-    needs: build_and_test
+    needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -73,25 +81,19 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Set up Kubeconfig
-        run: aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
+        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
       - name: Create K8s Secret File from GitHub Secrets
         run: echo "${{ secrets.K8S_SECRET_YAML }}" > k8s/secret.yaml
 
-      - name: Deploy to Kubernetes
-        env:
-          ECR_REGISTRY: ${{ needs.build_and_test.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          sed -i "s|<YOUR_ECR_REPOSITORY_URL>|${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}|g" k8s/deployment.yaml
+      - name: Update Kubernetes deployment manifest
+        run: sed -i "s|IMAGE_PLACEHOLDER|${{ needs.build.outputs.image }}|g" k8s/deployment.yaml
 
-          kubectl apply -f k8s/secret.yaml
-          kubectl apply -f k8s/configmap.yaml
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-          kubectl apply -f k8s/ingress.yaml
+      - name: Apply Kubernetes manifests
+        run: kubectl apply -f k8s/
 
-          kubectl rollout restart deployment restapi-users-deployment
+      - name: Verify deployment rollout
+        run: kubectl rollout status deployment/restapi-users-deployment --timeout=120s

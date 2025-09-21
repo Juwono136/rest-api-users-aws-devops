@@ -1,29 +1,18 @@
-# --- Build Stage ---
-FROM node:alpine3.20 AS builder
-
-WORKDIR /app
-
-# Copy package files and install all dependencies
-COPY package*.json ./
-RUN npm install
-
-COPY . .
-
-
-# --- Production Stage ---
+# Base image
 FROM node:alpine3.20
 
+# Set working directory
 WORKDIR /app
 
-# Only install production dependencies for a smaller, safer image
-COPY package*.json ./
-RUN npm install --only=production
+# Copy package files and install dependencies
+COPY package.json ./
+RUN npm install
 
-# Copy the app from the 'builder' stage
-COPY --from=builder /app .
+# Copy application files
+COPY . .
 
-# Expose the port
+# Expose the application port (server_port)
 EXPOSE 5000
 
-# run the app
-CMD ["node", "index.js"]
+# Command to run the application
+CMD ["npm", "start"]

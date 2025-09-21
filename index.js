@@ -70,19 +70,9 @@ if (process.env.NODE_ENV === "production") {
 
 app.use(errorHandler);
 
-app.get("/healthz", (req, res) => {
-  res.status(200).send("OK");
-});
+mongoose.set("strictQuery", true);
 
-export default app;
-
-const startServer = () => {
-  mongoose
-    .connect(CONNECTION_URL, { dbName: DB_NAME })
-    .then(() => app.listen(PORT, () => console.log(`Server running on port: ${PORT}`)))
-    .catch((error) => console.log(error.message));
-};
-
-if (process.env.NODE_ENV !== "test") {
-  startServer();
-}
+mongoose
+  .connect(CONNECTION_URL, { dbName: DB_NAME })
+  .then(() => app.listen(PORT, () => console.log(`Server running on port: ${PORT}`)))
+  .catch((error) => console.log(error.message));

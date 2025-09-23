@@ -82,6 +82,17 @@ module "eks" {
           }
         }
       }
+    },
+    github_actions_user = {
+      principal_arn = "arn:aws:iam::881881864280:user/terraform-admin"
+      policy_associations = {
+        admin_access = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
     }
   }
 

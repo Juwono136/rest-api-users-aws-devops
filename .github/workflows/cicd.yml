@@ -12,6 +12,8 @@ env:
   AWS_REGION: ap-southeast-2
   ECR_REPOSITORY: restapi-users
   EKS_CLUSTER_NAME: restapi-users-cluster
+  K8S_DEPLOYMENT_NAME: restapi-users-deployment
+  INGRESS_HOSTNAME: portproject.my.id
 
 jobs:
   build:
@@ -87,14 +89,33 @@ jobs:
       - name: Set up Kubeconfig
         run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
-      - name: Create K8s Secret File from GitHub Secrets
-        run: echo "${{ secrets.K8S_SECRET_YAML }}" > k8s/secret.yaml
+      - name: Update Ingress manifest with correct hostname
+        run: sed -i "s|__INGRESS_HOSTNAME__|${{ env.INGRESS_HOSTNAME }}|g" k8s/ingress.yaml
 
-      - name: Update Kubernetes deployment manifest
-        run: sed -i "s|IMAGE_PLACEHOLDER|${{ needs.build.outputs.image }}|g" k8s/deployment.yaml
+      - name: Apply Kubernetes non-secret manifests
+        run: |
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/ingress.yaml
 
-      - name: Apply Kubernetes manifests
-        run: kubectl apply -f k8s/
+      - name: Create or Update Kubernetes Secret
+        run: |
+          kubectl create secret generic restapi-users-secrets \
+            --from-literal=CONNECTION_URL='${{ secrets.CONNECTION_URL }}' \
+            --from-literal=DB_NAME='${{ secrets.DB_NAME }}' \
+            --from-literal=REFRESH_TOKEN_SECRET='${{ secrets.REFRESH_TOKEN_SECRET }}' \
+            --from-literal=ACCESS_TOKEN_SECRET='${{ secrets.ACCESS_TOKEN_SECRET }}' \
+            --from-literal=ACTIVATION_TOKEN_SECRET='${{ secrets.ACTIVATION_TOKEN_SECRET }}' \
+            --from-literal=DOCKER_USERNAME='${{ secrets.DOCKER_USERNAME }}' \
+            --from-literal=DOCKER_PASSWORD='${{ secrets.DOCKER_PASSWORD }}' \
+            --from-literal=TUNNEL_NAME='${{ secrets.TUNNEL_NAME }}' \
+            --from-literal=EMAIL_USER='${{ secrets.EMAIL_USER }}' \
+            --from-literal=EMAIL_PASSWORD='${{ secrets.EMAIL_PASSWORD }}' \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Update deployment image
+        run: kubectl set image deployment/${{ env.K8S_DEPLOYMENT_NAME }} restapi-users-container=${{ needs.build.outputs.image }}
 
       - name: Verify deployment rollout
-        run: kubectl rollout status deployment/restapi-users-deployment --timeout=120s
+        run: kubectl rollout status deployment/${{ env.K8S_DEPLOYMENT_NAME }} --timeout=120s

@@ -72,7 +72,7 @@ module "eks" {
 
   # Access Entries (IAM roles/users who are allowed cluster access)
   access_entries = {
-    github_actions = {
+    terraform_admin = {
       principal_arn = var.terraform_admin_role_arn
       policy_associations = {
         admin_access = {

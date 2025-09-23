@@ -7,7 +7,6 @@ on:
   pull_request:
     branches:
       - master
-  workflow_dispatch:
 
 env:
   AWS_REGION: ap-southeast-2
@@ -53,7 +52,7 @@ jobs:
       - name: Build and tag the Docker image
         id: build-image
         run: |
-          IMAGE_TAG=${{ github.sha }}-$(date +%s)
+          IMAGE_TAG=${{ github.sha }}
           docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG} .
           echo "image=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
@@ -74,7 +73,7 @@ jobs:
     name: Deploy to Staging (EKS)
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
 
     steps:
       - name: Checkout Code

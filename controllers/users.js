@@ -21,7 +21,7 @@ export const signUp = async (req, res) => {
       client_url,
     } = req.body;
 
-    if (binusian_id || !name || !email || !address || !phone || !password || !confirmPassword) {
+    if (!binusian_id || !name || !email || !address || !phone || !password || !confirmPassword) {
       return res.status(400).json({ message: "Please fill in all fields" });
     }
 

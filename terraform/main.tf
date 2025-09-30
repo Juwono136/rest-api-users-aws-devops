@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.36"
+      version = "~> 5.40"
     }
   }
 }
@@ -42,6 +42,7 @@ module "vpc" {
 
   enable_nat_gateway = true
   single_nat_gateway = true
+  map_public_ip_on_launch = true
 
   public_subnet_tags = {
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
@@ -59,10 +60,17 @@ module "vpc" {
 # EKS Module
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "20.8.4"
+  version = "~> 20.8"
 
   cluster_name    = var.cluster_name
   cluster_version = "1.29"
+
+  cluster_addons = {
+    vpc-cni = {}
+    coredns = {}
+    kube-proxy = {}
+    # aws-load-balancer-controller = {}
+  }
 
   # Public access endpoint
   cluster_endpoint_public_access = true
@@ -74,17 +82,7 @@ module "eks" {
   access_entries = {
     terraform_admin = {
       principal_arn = var.terraform_admin_role_arn
-      policy_associations = {
-        admin_access = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy"
-          access_scope = {
-            type = "cluster"
-          }
-        }
-      }
-    },
-    github_actions_user = {
-      principal_arn = "arn:aws:iam::881881864280:user/terraform-admin"
+
       policy_associations = {
         admin_access = {
           policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy"
@@ -100,10 +98,22 @@ module "eks" {
   eks_managed_node_groups = {
     main = {
       min_size     = 1
-      max_size     = 3
-      desired_size = 2
+      max_size     = 2
+      desired_size = 1
 
       instance_types = ["t3.small"]
+      disk_size = 20
+      ami_type = "AL2_x86_64"
+
+      update_config = {
+        max_unavailable = 1
+      }
+
+      iam_role_additional_policies = {
+        eks_worker_node = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+        eks_cni = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+        ecr_read_only = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+      }
     }
   }
 

@@ -7,15 +7,15 @@ variable "aws_region" {
 }
 
 variable "project_name" {
-  description = "Main project name."
+  description = "Name of the project."
   type        = string
   default     = "restapi-users"
 }
 
 variable "environment" {
-  description = "Deployment environment (e.g., staging, production)."
+  description = "Deployment environment (e.g., dev, staging, production)."
   type        = string
-  default     = "staging"
+  default     = "dev"
 }
 
 variable "cluster_name" {

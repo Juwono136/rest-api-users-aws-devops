@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: watchdog-rule
+  namespace: monitoring
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: test-alerts
+      rules:
+        - alert: Watchdog
+          expr: vector(1) == 1
+          for: 1m
+          labels:
+            severity: none
+          annotations:
+            summary: "This is a test alert to ensure the notification pipeline is working."

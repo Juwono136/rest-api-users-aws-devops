@@ -128,6 +128,9 @@ jobs:
           helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
             -f monitoring/alertmanager-values.yaml \
+            --set alertmanager.config.global.resolve_timeout='5m' \
+            --set alertmanager.config.global.smtp_from='${{ secrets.GMAIL_USERNAME_MONITORING }}' \
+            --set alertmanager.config.global.smtp_smarthost='smtp.gmail.com:587' \
             --set alertmanager.config.global.smtp_auth_username='${{ secrets.GMAIL_USERNAME_MONITORING }}' \
             --set alertmanager.config.global.smtp_auth_password='${{ secrets.GMAIL_APP_PASSWORD_MONITORING }}'
           kubectl apply -f monitoring/my-alert-rules.yaml

@@ -120,3 +120,12 @@ jobs:
 
       - name: Verify deployment rollout
         run: kubectl rollout status deployment/${{ env.K8S_DEPLOYMENT_NAME }} --timeout=120s
+
+      - name: Deploy Monitoring Stack
+        run: |
+          helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            -f monitoring/alertmanager-values.yaml \
+            --set alertmanager.config.global.smtp_auth_username='${{ secrets.GMAIL_USERNAME_MONITORING }}' \
+            --set alertmanager.config.global.smtp_auth_password='${{ secrets.GMAIL_APP_PASSWORD_MONITORING }}'
+          kubectl apply -f monitoring/my-alert-rules.yaml

@@ -142,7 +142,7 @@ const swaggerSpec = swaggerJsDoc({
         description: "Development",
       },
       {
-        url: "https://csbi-users.csbihub.id/api/user",
+        url: "https://portproject.my.id/api/user",
         description: "Production",
       },
     ],
